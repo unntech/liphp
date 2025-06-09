@@ -1,5 +1,5 @@
 
-LiPhp 1.0
+LiPhp 2.0
 ===============
 
 [![Latest Stable Version](https://poser.pugx.org/unntech/liphp/v/stable)](https://packagist.org/packages/unntech/liphp)
@@ -21,7 +21,7 @@ LiPhp的公共库，需先创建LiApp 或LiApi项目使用
 * 统一和精简大量用法
 
 
-> LitePhp 1.0的运行环境要求PHP8.1+
+> LitePhp 2.0的运行环境要求PHP8.1+
 
 ## 安装
 

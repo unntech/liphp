@@ -165,13 +165,13 @@ abstract class Db {
         return $this;
     }
 
-    public function groupby(string $groupby): static
+    public function groupby(string|array $groupby): static
     {
         $this->options['param']['GROUPBY'] = $groupby;
         return $this;
     }
 
-    public function order(string $order): static
+    public function order(string|array $order): static
     {
         $this->options['param']['ORDER'] = $order;
         return $this;

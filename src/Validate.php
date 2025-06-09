@@ -813,5 +813,56 @@ class Validate{
         return !empty($val) && preg_match(LiRegular::$patternMacAddress, $val);
     }
 
+    /**
+     * 验证是否为合法的银行卡号
+     * @param string $cardNumber
+     * @return bool
+     */
+    public static function isValidBankCard(string $cardNumber): bool
+    {
+        // 1. 去除所有非数字字符
+        $cardNumber = preg_replace('/\D/', '', $cardNumber);
+
+        // 2. 检查长度是否在合理范围内（通常12-19位）
+        $length = strlen($cardNumber);
+        if ($length < 12 || $length > 19) {
+            return false;
+        }
+
+        // 3. 检查是否全为数字
+        if (!ctype_digit($cardNumber)) {
+            return false;
+        }
+
+        // 4. 可选：使用Luhn算法验证卡号有效性
+        return self::luhnCheck($cardNumber);
+    }
+
+    /**
+     * Luhn算法验证
+     * @param string $number
+     * @return bool
+     */
+    public static function luhnCheck(string $number): bool
+    {
+        $sum = 0;
+        $alt = false;
+
+        for ($i = strlen($number) - 1; $i >= 0; $i--) {
+            $digit = intval($number[$i]);
+
+            if ($alt) {
+                $digit *= 2;
+                if ($digit > 9) {
+                    $digit -= 9;
+                }
+            }
+
+            $sum += $digit;
+            $alt = !$alt;
+        }
+
+        return ($sum % 10) == 0;
+    }
 
 }
