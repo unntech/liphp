@@ -152,31 +152,33 @@ class LiCrypt
     /**
      * 生成TOKEN
      * @param array $jwt (exp: 过期时间, iat: 签发时间, nbf: 生效时间)
-     * @param bool $needSign 是否需要生成签名，防止数据被篡改，提高安全性
+     * @param int $exp (0：为使用$jwt数据里的exp； 其它时间为有效期，如 600为10分钟)
+     * @param bool|string $salt 是否需要（并使用盐值）生成签名，防止数据被篡改，提高安全性
      * @return bool|string 加密后字符串
      */
-    public function getToken(array $jwt, bool $needSign = false): bool|string
+    public function getToken(array $jwt, int $exp = 0, bool|string $salt = false): bool|string
     {
-        if (is_array($jwt)) {
-            if ($needSign) {
-                $sign = $this->signature($jwt);
-                $jwt['sign'] = $sign;
-            }
-            $rt = $this->encrypt(json_encode($jwt));
-            $this->err = 0;
-            return $rt;
-        } else {
-            return false;
+        if($exp != 0){
+            $jwt['exp'] = time() + $exp;
         }
+        if ($salt || $salt === '') {
+            $_salt = is_string($salt) ? $salt : null;
+            $sign = $this->signature($jwt, $_salt);
+            $jwt['sign'] = $sign;
+        }
+        $rt = $this->encrypt(json_encode($jwt));
+        $this->err = 0;
+        return $rt;
+
     }
 
     /**
      * 验证TOKEN
      * @param string $Token
-     * @param bool $needSign 需验证签名，防止数据被篡改
+     * @param bool|string|null $salt 需盐值验证签名，防止数据被篡改
      * @return bool|array Jwt数组 失败返回false, err为错误代码
      */
-    public function verifyToken(string $Token, bool $needSign = false): bool|array
+    public function verifyToken(string $Token, bool|string|null $salt = null): bool|array
     {
         $re = $this->decrypt($Token);
         if ($re === false) {
@@ -185,32 +187,39 @@ class LiCrypt
         } else {
             $arr = json_decode($re, true);
             if (is_array($arr)) {
-                if ($needSign) {
+                if($salt !== false && !is_null($salt)){
+                    if(!isset($arr['sign'])){
+                        $this->err = 2; //签名错
+                        return false;
+                    }
+                }
+                if ($salt !== false && isset($arr['sign'])) {
                     $sign = $arr['sign'];
                     unset($arr['sign']);
-                    $_sign = $this->signature($arr);
+                    $_salt = is_string($salt) ? $salt : null;
+                    $_sign = $this->signature($arr, $_salt);
                     if ($sign != $_sign) {
                         $this->err = 2; //签名错，数据被篡改
                         return false;
                     }
                 }
 
-                $curtime = time();
+                $curTime = time();
 
                 //签发时间大于当前服务器时间验证失败
-                if (isset($arr['iat']) && $arr['iat'] > $curtime) {
+                if (isset($arr['iat']) && $arr['iat'] > $curTime) {
                     $this->err = 3;
                     return false;
                 }
 
                 //过期时间小宇当前服务器时间验证失败
-                if (isset($arr['exp']) && $arr['exp'] < $curtime) {
+                if (isset($arr['exp']) && $arr['exp'] < $curTime) {
                     $this->err = 4;
                     return false;
                 }
 
                 //该nbf时间之前不接收处理该Token
-                if (isset($arr['nbf']) && $arr['nbf'] > $curtime) {
+                if (isset($arr['nbf']) && $arr['nbf'] > $curTime) {
                     $this->err = 5;
                     return false;
                 }
@@ -226,11 +235,12 @@ class LiCrypt
     }
 
 
-    protected function signature(array $arr): string
+    protected function signature(array $arr, ?string $salt = null): string
     {
         unset($arr['sign']);
         ksort($arr);
-        return md5(http_build_query($arr) . $this->salt);
+        $_salt = is_null($salt) ? $this->salt : $salt;
+        return md5(http_build_query($arr) . $_salt);
 
     }
 

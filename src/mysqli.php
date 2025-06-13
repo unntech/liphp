@@ -4,8 +4,9 @@ declare (strict_types = 1);
 namespace LiPhp;
 
 use LiPhp\Models\MySqliResult;
+use LiPhp\Models\DbBuilder;
 
-class mysqli extends Db
+class mysqli extends DbBuilder
 {
 
     /**
@@ -74,8 +75,6 @@ class mysqli extends Db
             'errorMessage'  => $this->errorMessage,
         ]);
     }
-
-
 
     //事务操作
     public function startTrans()

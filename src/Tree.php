@@ -72,6 +72,26 @@ class Tree
     }
 
     /**
+     * 得到节点数组
+     * @param $myid
+     * @return array
+     */
+    public function getNode($myid): array
+    {
+        $newarr = [];
+        foreach ($this->arr as $value) {
+            if (!isset($value['id'])) {
+                continue;
+            }
+            if($value['id'] == $myid) {
+                $newarr = $value;
+                break;
+            }
+        }
+        return $newarr;
+    }
+
+    /**
      * 得到子级数组
      * @param int
      * @return array

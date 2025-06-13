@@ -4,8 +4,9 @@ declare (strict_types = 1);
 namespace LiPhp;
 
 use LiPhp\Models\SqlSrvResult;
+use LiPhp\Models\DbBuilder;
 
-class sqlsrv extends Db
+class sqlsrv extends DbBuilder
 {
     protected int $insertid = 0;
     protected int $affected_rows = 0;

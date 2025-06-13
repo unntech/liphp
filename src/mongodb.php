@@ -9,8 +9,9 @@ use MongoDB\Driver\Query;
 use MongoDB\BSON\UTCDateTime;
 use MongoDB\BSON\ObjectId;
 use LiPhp\Models\MongoDBResult;
+use LiPhp\Models\DbBuilder;
 
-class mongodb extends Db
+class mongodb extends DbBuilder
 {
 	protected string $dbname;
 
@@ -23,7 +24,7 @@ class mongodb extends Db
 		$this->dbname  = $cfg['dbname'];
         $this->connid = new Manager($cfg['uri']);
     }
-	
+
 	//插入数据
 	public function insert(array|object $data)
     {
