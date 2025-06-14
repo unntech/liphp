@@ -567,6 +567,11 @@ class sqlsrv extends DbBuilder
         return sqlsrv_client_info( $this->connid );
     }
 
+    public function error(): bool|string
+    {
+        return json_encode($this->errors(), JSON_UNESCAPED_UNICODE);
+    }
+
     public function errors()
     {
         return sqlsrv_errors();

@@ -7,6 +7,15 @@ namespace LiPhp;
  * @method static mysqli|sqlsrv|mongodb table(string $table, ?string $alias= null)
  * @method static mysqli|sqlsrv|mongodb where(string|array $condition)
  * @method static mysqli|sqlsrv fields(string|array $fields)
+ * @method static string getLastSql()
+ * @method static array getOptions()
+ * @method static mysqli|sqlsrv query(string $sql)
+ * @method static \mysqli_result|resource startTrans()
+ * @method static \mysqli_result|resource commit()
+ * @method static \mysqli_result|resource rollback()
+ * @method static bool tableExists(string $tableName)
+ * @method static int errno()
+ * @method static string error()
  */
 
 abstract class Db

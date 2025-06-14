@@ -120,25 +120,25 @@ class DbBuilder
         return $this;
     }
 
-    public function limit(int|array $limit): static
+    public function limit(int|array|null $limit): static
     {
         $this->options['param']['LIMIT'] = $limit;
         return $this;
     }
 
-    public function join(string $join): static
+    public function join(?string $join): static
     {
         $this->options['param']['JOIN'] = $join;
         return $this;
     }
 
-    public function groupby(string|array $groupby): static
+    public function groupby(string|array|null $groupby): static
     {
         $this->options['param']['GROUPBY'] = $groupby;
         return $this;
     }
 
-    public function order(string|array $order): static
+    public function order(string|array|null $order): static
     {
         $this->options['param']['ORDER'] = $order;
         return $this;

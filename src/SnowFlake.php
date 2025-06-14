@@ -44,7 +44,7 @@ class SnowFlake
         /*
         * Time - 42 bits
         */
-        $time = floor(microtime(true) * 1000);
+        $time = microtime(true) * 1000;
 
         /*
         * Substract custom epoch from current time
@@ -55,7 +55,7 @@ class SnowFlake
         * Create a base and add time to it
         */
         //$base = decbin(self::max41bit + $time);  //加上固定值63位
-        $base = decbin($time);
+        $base = decbin((int)$time);
 
         /*
         * Configured machine id - 10 bits - up to 1024 machines

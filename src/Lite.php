@@ -4,7 +4,7 @@ declare (strict_types = 1);
 namespace LiPhp;
 
 class Lite {
-    const VERSION = '2.0.1';
+    const VERSION = '2.0.2';
     const Framework = 'LiPhp';
     
     /**
