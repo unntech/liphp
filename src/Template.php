@@ -4,16 +4,16 @@ declare (strict_types = 1);
 namespace LiPhp;
 
 class Template {
-    protected static string $dt_root, $cachePath, $template='default';
+    protected static string $templatePath, $cachePath, $template='default';
     protected static int $chmod = 0755;
     protected static bool $template_refresh = true;
     
     /*
      * 模板类初始化数据，refresh 为false时，不会自动刷新修改的模版文件
      */
-    public static function init(string $rootPath, string $template, string $cachePath, bool $refresh = true): void
+    public static function init(string $templatePath, string $template, string $cachePath, bool $refresh = true): void
     {
-        self::$dt_root = $rootPath;
+        self::$templatePath = $templatePath;
         self::$template = $template;
         self::$cachePath = $cachePath;
         self::$template_refresh = $refresh;
@@ -27,7 +27,7 @@ class Template {
      */
     public static function load(?string $template = null, ?string $dir = null)
     {
-        if(empty(self::$dt_root) || empty(self::$cachePath)){
+        if(empty(self::$templatePath) || empty(self::$cachePath)){
             self::setDefaultPath();
         }
         if(is_null($template)){
@@ -40,18 +40,18 @@ class Template {
             }
             $to = self::$cachePath.'/tpl/'.self::$template.'/'.(empty($dir) ? '' : $dir.'/' ). $template.'.php';
         }
-        $isfileto = is_file($to);
-        if(!$isfileto || self::$template_refresh) {
+        $isFileTo = is_file($to);
+        if(!$isFileTo || self::$template_refresh) {
             if(is_null($template)){
                 $_htm = preg_replace('/\.php$/', '.htm', $_php);
-                $from = self::$dt_root.'/template/'.self::$template.$_htm;
+                $from = self::$templatePath . '/' . self::$template . $_htm;
             }else{
-                $from = self::$dt_root.'/template/'.self::$template.'/'.(empty($dir) ? '' : $dir.'/' ).$template.'.htm';
+                $from = self::$templatePath . '/' . self::$template.'/'.(empty($dir) ? '' : $dir.'/' ) . $template . '.htm';
             }
             if(self::$template != 'default' && !is_file($from)) {
-                $from = self::$dt_root.'/template/default/'.$dir.$template.'.htm';
+                $from = self::$templatePath . '/default/' . $dir . $template . '.htm';
             }
-            if(!$isfileto || filemtime($from) > filemtime($to) || (filesize($to) == 0 && filesize($from) > 0)) {
+            if(!$isFileTo || filemtime($from) > filemtime($to) || (filesize($to) == 0 && filesize($from) > 0)) {
                 self::template_compile($from, $to);
             }
         }
@@ -86,7 +86,7 @@ class Template {
         self::file_put($to, $content);
     }
 
-    protected static function template_parse($str): string
+    protected static function template_parse(string $str): string
     {
         $str = preg_replace("/\<\!\-\-\[(.+?)\]\-\-\>/", "", $str);
         $str = preg_replace("/\<\!\-\-\{(.+?)\}\-\-\>/s", "{\\1}", $str);
@@ -143,38 +143,16 @@ class Template {
 
     protected static function file_get($filename)
     {
-        return @file_get_contents($filename);
+        $str =  @file_get_contents($filename);
+        return $str === false ? '' : $str;
     }
     
-    protected static function dir_create($path)
+    protected static function dir_create($path): bool
     {
-        if(is_dir($path)) return true;
-        if(self::$cachePath != self::$dt_root.'/runtime/cache' && str_contains($path, self::$cachePath)) {
-            $dir = str_replace(self::$cachePath.'/', '', $path);
-            $dir = self::dir_path($dir);
-            $temp = explode('/', $dir);
-            $cur_dir = self::$cachePath.'/';
-        } else {
-            $dir = str_replace(self::$dt_root.'/', '', $path);
-            $dir = self::dir_path($dir);
-            $temp = explode('/', $dir);
-            $cur_dir = self::$dt_root.'/';
+        if (!is_dir($path)) {
+            return mkdir($path, self::$chmod, true); // 第三个参数true表示递归创建
         }
-        $max = count($temp) - 1;
-        for($i = 0; $i < $max; $i++) {
-            $cur_dir .= $temp[$i].'/';
-            if(is_dir($cur_dir)) continue;
-            @mkdir($cur_dir);
-            if(self::$chmod) @chmod($cur_dir, self::$chmod);
-        }
-        return is_dir($path);
-    }
-    
-    protected static function dir_path($dirpath)
-    {
-        $dirpath = str_replace('\\', '/', $dirpath);
-        if(!str_ends_with($dirpath, '/')) $dirpath = $dirpath.'/';
-        return $dirpath;
+        return true;
     }
     
     /**
@@ -184,8 +162,9 @@ class Template {
      */
     protected static function setDefaultPath(): void
     {
-        self::$dt_root = dirname(__DIR__ , 4);
-        self::$cachePath = self::$dt_root."/runtime/cache";
+        $dt_root = dirname(__DIR__ , 4);
+        self::$templatePath = $dt_root . '/template';
+        self::$cachePath = $dt_root."/runtime/cache";
     }
 
 }

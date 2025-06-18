@@ -55,14 +55,14 @@ litephp/
 │   ├── LiHttp.php                          #Http基础类，curl
 │   ├── LiRegular.php                       #常用正则
 │   ├── Lite.php                            #Lite基础类
-│   ├── mongodb.php                         #mongodb操作对象类
-│   ├── mysqli.php                          #mysql操作对象类
+│   ├── MongoDB.php                         #MongoDB操作对象类
+│   ├── Mysqli.php                          #Mysql操作对象类
 │   ├── Model.php                           #Model模型基础类
 │   ├── qrCode.php                          #二维码生成类
 │   ├── Redis.php                           #Redis静态实例类
 │   ├── Session.php                         #Session类
 │   ├── SnowFlake.php                       #雪花生成64位int
-│   ├── sqlsrv.php                          #mssql server 操作对象类
+│   ├── SqlSrv.php                          #mssql server 操作对象类
 │   ├── Template.php                        #视图模板文件载入类
 │   ├── Tree.php                            #树型通用类
 │   ├── UUID.php                            #UUID生成器
