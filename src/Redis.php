@@ -91,4 +91,9 @@ class Redis {
         
     }
 
+    public static function close(): bool
+    {
+        return self::$redis->close();
+    }
+
 }

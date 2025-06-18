@@ -11,7 +11,7 @@ use MongoDB\BSON\ObjectId;
 use LiPhp\Models\MongoDBResult;
 use LiPhp\Models\DbBuilder;
 
-class mongodb extends DbBuilder
+class MongoDB extends DbBuilder
 {
 	protected string $dbname;
 

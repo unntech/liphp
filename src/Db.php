@@ -4,12 +4,12 @@ declare (strict_types = 1);
 namespace LiPhp;
 
 /**
- * @method static mysqli|sqlsrv|mongodb table(string $table, ?string $alias= null)
- * @method static mysqli|sqlsrv|mongodb where(string|array $condition)
- * @method static mysqli|sqlsrv fields(string|array $fields)
+ * @method static Mysqli|SqlSrv|MongoDB table(string $table, ?string $alias= null)
+ * @method static Mysqli|SqlSrv|MongoDB where(string|array $condition)
+ * @method static Mysqli|SqlSrv fields(string|array $fields)
  * @method static string getLastSql()
  * @method static array getOptions()
- * @method static mysqli|sqlsrv query(string $sql)
+ * @method static Mysqli|SqlSrv query(string $sql)
  * @method static \mysqli_result|resource startTrans()
  * @method static \mysqli_result|resource commit()
  * @method static \mysqli_result|resource rollback()
@@ -21,7 +21,7 @@ namespace LiPhp;
 abstract class Db
 {
     /**
-     * @var mysqli | sqlsrv | mongodb
+     * @var Mysqli | SqlSrv | MongoDB
      */
     public static $db;
     
@@ -35,13 +35,13 @@ abstract class Db
         $dbt = $cfg['database'];
         switch($dbt){
             case 'mysqli':
-                $db = new mysqli($cfg);
+                $db = new Mysqli($cfg);
                 break;
             case 'sqlsrv':
-                $db = new sqlsrv($cfg);
+                $db = new SqlSrv($cfg);
                 break;
             case 'mongodb':
-				$db = new mongodb($cfg);
+				$db = new MongoDB($cfg);
 				break;
             default :
                 $db = false;

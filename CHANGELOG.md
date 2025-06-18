@@ -3,6 +3,7 @@ CHANGELOG
 
 ### v2.0.2 `2025-06-14`
 * 修复 SnowFlake 类型错误 bug
+* 增加 Logger，日志记录标准类
 
 ### v2.0.1 `2025-06-05`
 * 从`unntech/litephp`引用版本, 优化PHP8强类型（严格模式），更多使用PHP8的新特性

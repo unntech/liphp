@@ -6,7 +6,7 @@ namespace LiPhp;
 use LiPhp\Models\SqlSrvResult;
 use LiPhp\Models\DbBuilder;
 
-class sqlsrv extends DbBuilder
+class SqlSrv extends DbBuilder
 {
     protected int $insertid = 0;
     protected int $affected_rows = 0;

@@ -3,7 +3,7 @@ declare (strict_types = 1);
 
 namespace LiPhp\Models;
 
-class MySqliResult extends DbResult
+class MysqliResult extends DbResult
 {
     public function __construct($data = [])
     {

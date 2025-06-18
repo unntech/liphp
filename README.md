@@ -8,7 +8,7 @@ LiPhp 2.0
 [![PHP Version Require](http://poser.pugx.org/unntech/liphp/require/php)](https://packagist.org/packages/unntech/liphp)
 [![License](https://poser.pugx.org/unntech/liphp/license)](https://packagist.org/packages/unntech/liphp)
 
-LiPhp的公共库，需先创建LiApp 或LiApi项目使用
+LiPhp的公共库，需先创建LiApp 或LiteSwoole项目使用
 
 
 
@@ -79,7 +79,7 @@ litephp/
 
 ## 命名规范
 
-`LiPhp`遵循PSR-2命名规范和PSR-4自动加载规范。
+`LiPhp`遵循PSR命名规范和PSR-4自动加载规范。
 
 ## 参与开发
 

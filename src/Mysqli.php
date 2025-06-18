@@ -3,10 +3,10 @@ declare (strict_types = 1);
 
 namespace LiPhp;
 
-use LiPhp\Models\MySqliResult;
+use LiPhp\Models\MysqliResult;
 use LiPhp\Models\DbBuilder;
 
-class mysqli extends DbBuilder
+class Mysqli extends DbBuilder
 {
 
     /**
@@ -58,15 +58,15 @@ class mysqli extends DbBuilder
         return $query;
     }
 
-    public function query(string $sql): MySqliResult
+    public function query(string $sql): MysqliResult
     {
         $query = $this->_query($sql);
         return $this->result($query);
     }
 
-    public function result($query): MySqliResult
+    public function result($query): MysqliResult
     {
-        return MySqliResult::instance([
+        return MysqliResult::instance([
             'result'        => $query,
             'sql'           => $this->sql,
             'insertId'      => $this->insert_id(),
@@ -135,7 +135,7 @@ class mysqli extends DbBuilder
         }
         if($this->options['fetchSql']){ return $sql; }
         $res = $this->_query($sql);
-        return MySqliResult::instance([
+        return MysqliResult::instance([
             'result'        => $res,
             'sql'           => $this->sql,
             'affected_rows' => $this->affected_rows(),
@@ -171,7 +171,7 @@ class mysqli extends DbBuilder
         }
         if($this->options['fetchSql']){ return $sql; }
         $res = $this->_query($sql);
-        return MySqliResult::instance([
+        return MysqliResult::instance([
             'result'        => $res,
             'sql'           => $this->sql,
             'affected_rows' => $this->affected_rows(),
@@ -184,7 +184,7 @@ class mysqli extends DbBuilder
      * 插入数据
      * @param array $data
      * @param bool $returnResult
-     * @return false|int|string|MySqliResult
+     * @return false|int|string|MysqliResult
      */
     public function insert(array $data = [], bool $returnResult = false)
     {
@@ -204,7 +204,7 @@ class mysqli extends DbBuilder
 
         $res = $this->_query($sql);
         if($returnResult){
-            return MySqliResult::instance([
+            return MysqliResult::instance([
                 'result'        => $res,
                 'sql'           => $this->sql,
                 'insertId'      => $this->insert_id(),
@@ -224,7 +224,7 @@ class mysqli extends DbBuilder
     /**
      * 批量插入数据
      * @param array $data
-     * @return false|MySqliResult|string
+     * @return false|MysqliResult|string
      */
     public function insertAll(array $data = [])
     {
@@ -256,7 +256,7 @@ class mysqli extends DbBuilder
         if($this->options['fetchSql']){ return $sql; }
 
         $res = $this->_query($sql) ;
-        return MySqliResult::instance([
+        return MysqliResult::instance([
             'result'        => $res,
             'sql'           => $this->sql,
             'insertId'      => $this->insert_id(),
@@ -333,7 +333,7 @@ class mysqli extends DbBuilder
         if($this->options['fetchSql']){ return $sql; }
 
         $res = $this->_query($sql) ;
-        return MySqliResult::instance([
+        return MysqliResult::instance([
             'result'        => $res,
             'sql'           => $this->sql,
             'errorCode'     => $this->errorCode,
