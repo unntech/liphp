@@ -129,7 +129,7 @@ class Template {
     protected static function file_put($filename, $data)
     {
         self::dir_create(dirname($filename));	
-        if(@$fp = fopen($filename, 'wb')) {
+        if($fp = @fopen($filename, 'wb')) {
             flock($fp, LOCK_EX);
             $len = fwrite($fp, $data);
             flock($fp, LOCK_UN);

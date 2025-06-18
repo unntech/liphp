@@ -14,9 +14,10 @@ class Logger
     const LEVEL_WARNING = 3;
     const LEVEL_ERROR = 4;
     const LEVEL_CRITICAL = 5;
-    const LEVEL_NONE = 6;
+    const LEVEL_RECORD = 6;
+    const LEVEL_NONE = 7;
 
-    const LEVEL_NAME = ['DEBUG',  'INFO', 'NOTICE', 'WARNING', 'ERROR', 'CRITICAL', 'NONE'];
+    const LEVEL_NAME = ['DEBUG',  'INFO', 'NOTICE', 'WARNING', 'ERROR', 'CRITICAL', 'RECORD', 'NONE'];
     protected int $logLevel = self::LEVEL_WARNING;
     protected array $outputTargets = [];
     protected string $dateFormat = 'Y-m-d H:i:s';
@@ -159,7 +160,7 @@ class Logger
      * @param int $level
      * @return void
      */
-    public function custom(mixed $data, int $level = 6): void
+    public function custom(mixed $data, int $level = self::LEVEL_RECORD): void
     {
         // 检查日志级别
         if (!$this->isLevelEnabled($level)) {
@@ -247,6 +248,11 @@ class Logger
     public function critical(string $message, array|object|string $context = []): void
     {
         $this->log(self::LEVEL_CRITICAL, $message, $context);
+    }
+
+    public function record(string $message, array|object|string $context = []): void
+    {
+        $this->log(self::LEVEL_RECORD, $message, $context);
     }
 
     protected function createDirectory($dirPath, $permissions = 0755): bool
