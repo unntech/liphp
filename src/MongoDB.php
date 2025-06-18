@@ -115,10 +115,8 @@ class MongoDB extends DbBuilder
 	
 	public function ISODate(int|float|null $d = null): UTCDateTime
     {
-		if(is_null($d)){
-			$d = microtime(true) * 1000;
-		}else{
-			$d = $d * 1000;
+		if(!is_null($d)){
+            $d = (int) ($d * 1000);
 		}
         return new UTCDateTime ($d);
 	}
