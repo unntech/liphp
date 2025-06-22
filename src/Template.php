@@ -80,7 +80,7 @@ class Template {
         return preg_match("/^[a-z0-9]{1}[a-z0-9_\-\/]{0,}[a-z0-9]{1}$/", $name);
     }
     
-    protected static function template_compile($from, $to): void
+    protected static function template_compile(string $from, string $to): void
     {
         $content = self::template_parse(self::file_get($from));
         self::file_put($to, $content);
@@ -111,8 +111,7 @@ class Template {
         $str = preg_replace("/\'([A-Za-z]+)\[\'([A-Za-z\.]+)\'\](.?)\'/s", "'\\1[\\2]\\3'", $str);
         $str = preg_replace("/(\r?\n)\\1+/", "\\1", $str);
         $str = str_replace("\t", '', $str);
-        $str = "<?php defined('IN_LitePhp') or exit('Access Denied');?>\n".$str;
-        return $str;
+        return "<?php defined('IN_LitePhp') or exit('Access Denied');?>\n".$str;
         
     }
 
@@ -126,7 +125,7 @@ class Template {
         return '<?php echo '.str_replace("\\\"", "\"", preg_replace("/\[([a-zA-Z0-9_\-\.\x7f-\xff]+)\]/s", "['\\1']", $matchs[1])).';?>';
     }
     
-    protected static function file_put($filename, $data)
+    protected static function file_put(string $filename, string $data): bool|int
     {
         self::dir_create(dirname($filename));	
         if($fp = @fopen($filename, 'wb')) {
@@ -141,7 +140,7 @@ class Template {
         }
     }
 
-    protected static function file_get($filename)
+    protected static function file_get(string $filename): string
     {
         $str =  @file_get_contents($filename);
         return $str === false ? '' : $str;

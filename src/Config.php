@@ -24,7 +24,7 @@ class Config
      * 构造方法
      * @access public
      */
-    public static function initialize($path = ''): void
+    public static function initialize(string $path = ''): void
     {
         if(empty($path)){
             self::$path = dirname(__DIR__ , 4) . '/config/';

@@ -35,14 +35,14 @@ class Image
     protected $im;
 
     /** @var  Gif */
-    protected $gif;
+    protected Gif $gif;
 
     /**
      * 图像信息，包括 width, height, type, mime, size
      *
      * @var array
      */
-    protected $info;
+    protected array $info;
 
     protected function __construct(\SplFileInfo $file)
     {
@@ -72,7 +72,7 @@ class Image
         }
 
         if (empty($this->im)) {
-            throw new \Exception('Failed to create image resources!');
+            throw new \InvalidArgumentException('Failed to create image resources!');
         }
 
     }
@@ -80,7 +80,7 @@ class Image
     /**
      * 打开一个图片文件
      * @param \SplFileInfo|string $file
-     * @return Image
+     * @return Image|bool
      */
     public static function open($file)
     {
@@ -88,7 +88,7 @@ class Image
             $file = new \SplFileInfo($file);
         }
         if (!$file->isFile()) {
-            // throw new \Exception('image file not exist');
+            // throw new \InvalidArgumentException('image file not exist');
             return false;
         }
         return new self($file);
@@ -102,7 +102,7 @@ class Image
      * @param bool        $interlace 是否对JPEG类型图像设置隔行扫描
      * @return $this
      */
-    public function save($pathname, $type = null, $quality = 80, $interlace = true)
+    public function save(string $pathname, ?string $type = null, int $quality = 80, bool $interlace = true): static
     {
         //自动获取图像类型
         if (is_null($type)) {
@@ -134,7 +134,7 @@ class Image
      * 返回图像宽度
      * @return int 图像宽度
      */
-    public function width()
+    public function width(): int
     {
         return $this->info['width'];
     }
@@ -143,7 +143,7 @@ class Image
      * 返回图像高度
      * @return int 图像高度
      */
-    public function height()
+    public function height(): int
     {
         return $this->info['height'];
     }
@@ -152,7 +152,7 @@ class Image
      * 返回图像类型
      * @return string 图像类型
      */
-    public function type()
+    public function type(): string
     {
         return $this->info['type'];
     }
@@ -161,7 +161,7 @@ class Image
      * 返回图像MIME类型
      * @return string 图像MIME类型
      */
-    public function mime()
+    public function mime(): string
     {
         return $this->info['mime'];
     }
@@ -170,7 +170,7 @@ class Image
      * 返回图像尺寸数组 0 - 图像宽度，1 - 图像高度
      * @return array 图像尺寸
      */
-    public function size()
+    public function size(): array
     {
         return [$this->info['width'], $this->info['height']];
     }
@@ -180,7 +180,7 @@ class Image
      * @param int $degrees 顺时针旋转的度数
      * @return $this
      */
-    public function rotate($degrees = 90)
+    public function rotate(int $degrees = 90): static
     {
         do {
             $img = imagerotate($this->im, -$degrees, imagecolorallocatealpha($this->im, 0, 0, 0, 127));
@@ -199,7 +199,7 @@ class Image
      * @param integer $direction 翻转轴,X或者Y
      * @return $this
      */
-    public function flip($direction = self::FLIP_X)
+    public function flip(int $direction = self::FLIP_X): static
     {
         //原图宽度和高度
         $w = $this->info['width'];
@@ -221,7 +221,7 @@ class Image
                     }
                     break;
                 default:
-                    throw new \Exception('不支持的翻转类型');
+                    throw new \InvalidArgumentException('不支持的翻转类型');
             }
 
             imagedestroy($this->im);
@@ -235,16 +235,16 @@ class Image
     /**
      * 裁剪图像
      *
-     * @param  integer $w      裁剪区域宽度
-     * @param  integer $h      裁剪区域高度
-     * @param  integer $x      裁剪区域x坐标
-     * @param  integer $y      裁剪区域y坐标
-     * @param  integer $width  图像保存宽度
-     * @param  integer $height 图像保存高度
+     * @param integer $w      裁剪区域宽度
+     * @param integer $h      裁剪区域高度
+     * @param integer $x      裁剪区域x坐标
+     * @param integer $y      裁剪区域y坐标
+     * @param integer|null $width  图像保存宽度
+     * @param integer|null $height 图像保存高度
      *
      * @return $this
      */
-    public function crop($w, $h, $x = 0, $y = 0, $width = null, $height = null)
+    public function crop(int $w, int $h, int $x = 0, int $y = 0, ?int $width = null, ?int $height = null): static
     {
         //设置保存尺寸
         empty($width) && $width   = $w;
@@ -269,13 +269,13 @@ class Image
     /**
      * 生成缩略图
      *
-     * @param  integer $width  缩略图最大宽度
-     * @param  integer $height 缩略图最大高度
-     * @param int      $type   缩略图裁剪类型
+     * @param integer $width  缩略图最大宽度
+     * @param integer $height 缩略图最大高度
+     * @param int $type   缩略图裁剪类型
      *
      * @return $this
      */
-    public function thumb($width, $height, $type = self::THUMB_SCALING)
+    public function thumb(int $width, int $height, int $type = self::THUMB_SCALING): static
     {
         //原图宽度和高度
         $w = $this->info['width'];
@@ -358,7 +358,7 @@ class Image
                 $x = $y = 0;
                 break;
             default:
-                throw new \Exception('不支持的缩略图裁剪类型');
+                throw new \InvalidArgumentException('不支持的缩略图裁剪类型');
         }
         /* 裁剪图像 */
         return $this->crop($w, $h, $x, $y, $width, $height);
@@ -367,12 +367,12 @@ class Image
     /**
      * 添加水印
      *
-     * @param  string $source 水印图片路径
-     * @param int     $locate 水印位置
-     * @param int     $alpha  透明度
+     * @param string $source 水印图片路径
+     * @param int $locate 水印位置
+     * @param int $alpha  透明度
      * @return $this
      */
-    public function water($source, $locate = self::WATER_SOUTHEAST, $alpha = 100)
+    public function water(string $source, int $locate = self::WATER_SOUTHEAST, int $alpha = 100): static
     {
         if (!is_file($source)) {
             throw new \Exception('水印图像不存在');
@@ -438,7 +438,7 @@ class Image
                 if (is_array($locate)) {
                     list($x, $y) = $locate;
                 } else {
-                    throw new \Exception('不支持的水印位置类型');
+                    throw new \InvalidArgumentException('不支持的水印位置类型');
                 }
         }
         do {
@@ -461,20 +461,19 @@ class Image
     /**
      * 图像添加文字
      *
-     * @param  string  $text   添加的文字
-     * @param  string  $font   字体路径
-     * @param  integer $size   字号
-     * @param  string  $color  文字颜色
-     * @param int      $locate 文字写入位置
-     * @param  integer $offset 文字相对当前位置的偏移量
-     * @param  integer $angle  文字倾斜角度
+     * @param string $text   添加的文字
+     * @param string $font   字体路径
+     * @param integer $size   字号
+     * @param string $color  文字颜色
+     * @param int $locate 文字写入位置
+     * @param integer $offset 文字相对当前位置的偏移量
+     * @param integer $angle  文字倾斜角度
      *
      * @return $this
      * @throws \Exception
      */
-    public function text($text, $font, $size, $color = '#00000000',
-                         $locate = self::WATER_SOUTHEAST, $offset = 0, $angle = 0) {
-
+    public function text(string $text, string $font, int $size, string $color = '#00000000', int $locate = self::WATER_SOUTHEAST, int $offset = 0, int $angle = 0): static
+    {
         if (!is_file($font)) {
             throw new \Exception("不存在的字体文件：{$font}");
         }
@@ -538,7 +537,7 @@ class Image
                     $x += $posx;
                     $y += $posy;
                 } else {
-                    throw new \Exception('不支持的文字位置类型');
+                    throw new \InvalidArgumentException('不支持的文字位置类型');
                 }
         }
         /* 设置偏移量 */
@@ -550,14 +549,14 @@ class Image
             $ox     = $oy     = $offset;
         }
         /* 设置颜色 */
-        if (is_string($color) && 0 === strpos($color, '#')) {
+        if (is_string($color) && str_starts_with($color, '#')) {
             $color = str_split(substr($color, 1), 2);
             $color = array_map('hexdec', $color);
             if (empty($color[3]) || $color[3] > 127) {
                 $color[3] = 0;
             }
         } elseif (!is_array($color)) {
-            throw new \Exception('错误的颜色值');
+            throw new \InvalidArgumentException('错误的颜色值');
         }
         do {
             /* 写入文字 */
@@ -597,12 +596,12 @@ class Image
         empty($this->im) || imagedestroy($this->im);
     }
 
-    public function free()
+    public function free(): void
     {
         empty($this->im) || imagedestroy($this->im);
     }
 
-    public function Exception($msg)
+    protected function Exception($msg): void
     {
         echo $msg;
     }

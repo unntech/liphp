@@ -1,6 +1,10 @@
 CHANGELOG
 =========
 
+### v2.0.3 `2025-06-20`
+* Db::Create 修改了参数, 引用到此类的扩展需对应修改：/app/framework/extend/Db.php
+* 增加`PgSql`数据库支持
+
 ### v2.0.2 `2025-06-14`
 * 修复 SnowFlake 类型错误 bug
 * 增加 Logger，日志记录标准类

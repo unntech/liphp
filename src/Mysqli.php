@@ -475,7 +475,7 @@ class Mysqli extends DbBuilder
         $this->sql = $sql;
         if($this->options['fetchSql']){ return $sql; }
 
-        $query = $this->query($sql);
+        $query = $this->_query($sql);
         $r = $query->fetch_row();
         return $r ? $r[0] : null;
     }
@@ -492,7 +492,7 @@ class Mysqli extends DbBuilder
 
         $table = str_replace('.', '`.`', $table);
         $this->sql = '';
-        $sql = "SELECT COUNT(*) AS amount FROM `{$table}`";
+        $sql = "SELECT COUNT(*) AS amount FROM `{$table}` ";
         if(!empty($alias)){
             $sql .= "AS {$alias} ";
         }
@@ -517,7 +517,7 @@ class Mysqli extends DbBuilder
         }
         $res = $this->_query($sql);
         $r = $res->fetch_assoc();
-        return $r ? $r['amount'] : 0;
+        return $r ? (int)$r['amount'] : 0;
     }
 
     /**

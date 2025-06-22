@@ -3,107 +3,125 @@ declare (strict_types = 1);
 
 namespace LiPhp;
 
-use LiPhp\Models\SqlSrvResult;
+use LiPhp\Models\PgSqlResult;
 use LiPhp\Models\DbBuilder;
 
-class SqlSrv extends DbBuilder
+class PgSql extends DbBuilder
 {
     protected int $insertid = 0;
     protected int $affected_rows = 0;
+    protected string $schema = 'public';
+    protected mixed $returning  = null;
+
     /**
      * 构造方法
      * @access public
      */
-    public function __construct($cfg)
+    public function __construct(array $cfg)
     {
-        if($cfg['hostport']!=0 && $cfg['hostport']!=1433){
-            $cfg['hostname'] .= ',' .$cfg['hostport'];
-        }
-        $TrustServerCertificate = $cfg['TrustServerCertificate'] ?? false;
-        return $this->connect($cfg['hostname'], $cfg['username'], $cfg['password'], $cfg['dbname'], $cfg['charset'], $TrustServerCertificate);
+        return $this->connect($cfg['hostname'], $cfg['hostport'], $cfg['username'], $cfg['password'], $cfg['dbname'], $cfg['charset'], $cfg['default_schema']);
     }
 
-    function connect( $dbhost, $dbuser, $dbpw, $dbname, $dbcharset, $TrustServerCertificate = false ) {
-        if(empty($dbcharset)){
-            $dbcharset = 'UTF-8';
+    public function connect($dbhost, $dbport, $dbuser, $dbpass, $dbname='', $dbcharset='', $default_schema='public')
+    {
+        if ( !$this->connid = pg_connect("host={$dbhost} port={$dbport} dbname={$dbname} user={$dbuser} password={$dbpass}") ) {
+            $this->halt( 'Can not connect to PgSql server' );
         }
-        $connectionOptions = array(
-            'CharacterSet' => $dbcharset,
-            "Database" => $dbname,
-            "Uid" => $dbuser,
-            "PWD" => $dbpw,
-            'TrustServerCertificate' => $TrustServerCertificate
-        );
-        //Establishes the connection
-        if ( !$this->connid = sqlsrv_connect( $dbhost, $connectionOptions ) ) {
-            print_r($this->errors());
-            $this->halt( 'Can not connect to MsSQL server' );
+        if(!empty($dbcharset)){
+            pg_set_client_encoding($this->connid, $dbcharset);
         }
+        if(!empty($default_schema)){
+            pg_query($this->connid, "SET search_path TO {$default_schema}");
+        }
+        $this->schema = $default_schema;
         return $this->connid;
     }
 
-    protected function _query(string $sql )
+    /**
+     * $returning 设为 ''时，在 insert 时不调用 RETURNING
+     * @param string $returning
+     * @return $this
+     */
+    public function returning(string $returning = 'id'): static
     {
-        $sql = trim( $sql );
+        $this->options['returning'] = $returning;
+        return $this;
+
+    }
+
+    public function default_schema(string $schema)
+    {
+        return pg_query($this->connid, "SET search_path TO {$schema}");
+    }
+
+    protected function _query(string $sql)
+    {
         $this->sql = $sql;
-        try{
+        try {
             $this->insertid = 0;
-            if ( preg_match( "/^insert into/i", $sql ) ) {
-                $sql = "{$sql}; SELECT @@identity as insertid;";
-                $query = sqlsrv_query( $this->connid, $sql );
+            $this->returning = null;
+            if ( preg_match( "/ RETURNING /i", $sql ) ) {
+                $query = pg_query( $this->connid, $sql );
                 if($query){
-                    sqlsrv_next_result( $query );
-                    $insid = $this->fetch_row( $query );
-                    $this->insertid = intval( $insid[ 0 ] );
+                    $this->returning = pg_fetch_assoc($query);
                 }
             } else {
-                $query = sqlsrv_query( $this->connid, $sql );
+                $query = pg_query($this->connid, $sql);
             }
         }catch (\Throwable $e){
             $this->exception($e, $sql);
         }
-
-        $_err = $this->errors();
-        $this->errorCode = $_err[0][1] ?? 0;
-        $this->errorMessage = $_err[0][0] ?? '';
+        // 获取错误号
+        if($query){
+            $error_code =(int)pg_result_error_field($query, PGSQL_DIAG_SQLSTATE);
+            $this->errorCode = $error_code;
+            $this->affected_rows = pg_affected_rows($query);
+        }else{
+            $this->errorCode = -1;
+        }
+        $this->errorMessage = $this->error();
         $this->query_finished = true;
-        $n = sqlsrv_rows_affected( $query );
-        $this->affected_rows = $n === false ? -1 : $n;
         return $query;
     }
 
-    public function query(string $sql): SqlSrvResult
+    public function query(string $sql): PgSqlResult
     {
         $query = $this->_query($sql);
         return $this->result($query);
     }
 
-    public function result($query): SqlSrvResult
+    public function result($query): PgSqlResult
     {
-        return SqlSrvResult::instance([
+        return PgSqlResult::instance([
             'result'        => $query,
             'sql'           => $this->sql,
-            'insertId'      => $this->insertid,
+            'returning'      => $this->returning,
             'affected_rows' => $this->affected_rows(),
             'errorCode'     => $this->errorCode,
             'errorMessage'  => $this->errorMessage,
         ]);
     }
 
+    public function schema(string $schema): static
+    {
+        $this->options['schema'] = $schema;
+        return $this;
+    }
+
     //事务操作
     public function startTrans()
     {
-        return $this->_query('BEGIN TRANSACTION');
+        return $this->_query('START TRANSACTION');
     }
 
     public function commit()
     {
-        return $this->_query('COMMIT TRANSACTION');
+        return $this->_query('COMMIT');
     }
 
     public function rollback()
     {
-        return $this->_query('ROLLBACK TRANSACTION');
+        return $this->_query('ROLLBACK');
     }
 
     //使用buildSql构造子查询
@@ -123,7 +141,7 @@ class SqlSrv extends DbBuilder
         $fields = is_array($data) ? $data : $this->options['fields'];
         $condition = $this->options['condition'];
 
-        $table = str_replace('.', '].[', $table);
+        $table = $this->tableNameAssociation($table);
         if(!is_array($fields) || empty($fields)){
             return false;
         }
@@ -132,7 +150,7 @@ class SqlSrv extends DbBuilder
         if(empty($ufields)){
             return false;
         }
-        $sql = "UPDATE [{$table}] SET " . implode(', ', $ufields);
+        $sql = "UPDATE \"{$table}\" SET " . implode(', ', $ufields);
         if(!empty($condition)){
             $ct = gettype($condition);
             if($ct == 'string'){
@@ -147,11 +165,15 @@ class SqlSrv extends DbBuilder
             }
 
         }
+        if(!empty($this->options['returning'])){
+            $sql .= " RETURNING " . $this->options['returning'];
+        }
         if($this->options['fetchSql']){ return $sql; }
-        $res =  $this->_query($sql);
-        return SqlSrvResult::instance([
+        $res = $this->_query($sql);
+        return PgSqlResult::instance([
             'result'        => $res,
             'sql'           => $this->sql,
+            'returning'      => $this->returning,
             'affected_rows' => $this->affected_rows(),
             'errorCode'     => $this->errorCode,
             'errorMessage'  => $this->errorMessage,
@@ -166,9 +188,9 @@ class SqlSrv extends DbBuilder
         }
         $condition = $this->options['condition'];
 
-        $table = str_replace('.', '].[', $table);
+        $table = $this->tableNameAssociation($table);
         $this->sql = '';
-        $sql = "DELETE FROM [{$table}] ";
+        $sql = "DELETE FROM \"{$table}\" ";
         if(!empty($condition)){
             $ct = gettype($condition);
             if($ct == 'string'){
@@ -183,11 +205,15 @@ class SqlSrv extends DbBuilder
             }
 
         }
+        if(!empty($this->options['returning'])){
+            $sql .= " RETURNING " . $this->options['returning'];
+        }
         if($this->options['fetchSql']){ return $sql; }
         $res = $this->_query($sql);
-        return SqlSrvResult::instance([
+        return PgSqlResult::instance([
             'result'        => $res,
             'sql'           => $this->sql,
+            'returning'      => $this->returning,
             'affected_rows' => $this->affected_rows(),
             'errorCode'     => $this->errorCode,
             'errorMessage'  => $this->errorMessage,
@@ -198,7 +224,7 @@ class SqlSrv extends DbBuilder
      * 插入数据
      * @param array $data
      * @param bool $returnResult
-     * @return false|int|string|SqlSrvResult
+     * @return false|int|string|PgSqlResult
      */
     public function insert(array $data = [], bool $returnResult = false)
     {
@@ -207,21 +233,29 @@ class SqlSrv extends DbBuilder
             return false;
         }
 
-        $table = str_replace('.', '`.`', $table);
+        $table = $this->tableNameAssociation($table);
         $this->sql = '';
         if(empty($data)){
             return false;
         }
         $d = $this->_fields_split($data);
-        $sql = "INSERT INTO [{$table}] (" . implode(',', $d[0]) . ") VALUES (" . implode(',', $d[1]) .") ";
+        $sql = "INSERT INTO \"{$table}\" (" . implode(',', $d[0]) . ") VALUES (" . implode(',', $d[1]) .") ";
+        $_returning = $this->options['returning'] ?? 'id';
+        if($_returning != ''){
+            $sql .= " RETURNING " . $_returning;
+        }
         if($this->options['fetchSql']){ return $sql; }
 
-        $res = $this->_query($sql) ;
+        $res = $this->_query($sql);
+        if(!empty($this->returning)){
+            $this->insertid = (int)$this->returning[$_returning];
+        }
         if($returnResult){
-            return SqlSrvResult::instance([
+            return PgSqlResult::instance([
                 'result'        => $res,
                 'sql'           => $this->sql,
-                'insertId'      => $this->insertid,
+                'returning'     => $this->returning,
+                'insertId'      => $this->insert_id(),
                 'affected_rows' => $this->affected_rows(),
                 'errorCode'     => $this->errorCode,
                 'errorMessage'  => $this->errorMessage,
@@ -237,8 +271,8 @@ class SqlSrv extends DbBuilder
 
     /**
      * 批量插入数据
-     * @param array $data 数据集 二级数组
-     * @return false|SqlSrvResult|string
+     * @param array $data
+     * @return false|PgSqlResult|string
      */
     public function insertAll(array $data = [])
     {
@@ -247,7 +281,7 @@ class SqlSrv extends DbBuilder
             return false;
         }
 
-        $table = str_replace('.', '`.`', $table);
+        $table = $this->tableNameAssociation($table);
         $this->sql = '';
         $d = [];
         foreach($data as $da){
@@ -260,20 +294,28 @@ class SqlSrv extends DbBuilder
             return false;
         }
 
-        $sql = "INSERT INTO [{$table}] (" . implode(',', $d[0][0]) . ") VALUES ";
+        $sql = "INSERT INTO \"{$table}\" (" . implode(',', $d[0][0]) . ") VALUES ";
         $first = true;
         foreach($d as $di){
             if(!$first){ $sql .= ', ';}
             $sql .= "(" . implode(',', $di[1]) . ") ";
             $first = false;
         }
+        $_returning = $this->options['returning'] ?? 'id';
+        if($_returning != ''){
+            $sql .= " RETURNING " . $_returning;
+        }
         if($this->options['fetchSql']){ return $sql; }
 
-        $res = $this->_query($sql);
-        return SqlSrvResult::instance([
+        $res = $this->_query($sql) ;
+        if(!empty($this->returning)){
+            $this->insertid = (int)$this->returning[$_returning];
+        }
+        return PgSqlResult::instance([
             'result'        => $res,
             'sql'           => $this->sql,
-            'insertId'      => $this->insertid,
+            'returning'     => $this->returning,
+            'insertId'      => $this->insert_id(),
             'affected_rows' => $this->affected_rows(),
             'errorCode'     => $this->errorCode,
             'errorMessage'  => $this->errorMessage,
@@ -291,24 +333,19 @@ class SqlSrv extends DbBuilder
         $param = $this->options['param'];
         $alias = $this->options['alias'];
 
-        $table = str_replace('.', '].[', $table);
+        $table = $this->tableNameAssociation($table);
         $this->sql = '';
-        if(!empty($param['LIMIT']) && !is_array($param['LIMIT'])){
-            $_top = 'TOP '.intval($param['LIMIT']);
-        }else{
-            $_top = '';
-        }
         if(empty($fields)){
-            $sql = "SELECT {$_top} ".(empty($alias) ? '' : "{$alias}.")."* FROM [{$table}] ";
+            $sql = "SELECT ".(empty($alias) ? '' : "{$alias}.")."* FROM \"{$table}\" ";
         }else{
             $ct = gettype($fields);
             if($ct == 'string'){
-                $fields = preg_replace('/[^A-Za-z0-9_,\-\. `()\*\[\]]/', '', $fields);
-                $sql = "SELECT {$_top} {$fields} FROM [{$table}] ";
+                $fields = preg_replace('/[^A-Za-z0-9_,\-\. `"()\*]/', '', $fields);
+                $sql = "SELECT {$fields} FROM \"{$table}\" ";
             }elseif($ct == 'array'){
-                $sql = "SELECT {$_top} ". implode(',', $fields) ." FROM [{$table}] ";
+                $sql = "SELECT ". implode(',', $fields) ." FROM \"{$table}\" ";
             }else{
-                $sql = "SELECT {$_top} noFields FROM [{$table}] ";
+                $sql = "SELECT noFields FROM \"{$table}\" ";
             }
         }
         if(!empty($alias)){
@@ -316,7 +353,7 @@ class SqlSrv extends DbBuilder
         }
 
         if(!empty($param['JOIN'])){
-            $str = preg_replace('/[^A-Za-z0-9_,\. `=\[\]]/', '', $param['JOIN']);
+            $str = preg_replace('/[^A-Za-z0-9_,\. `"=]/', '', $param['JOIN']);
             $sql .= " {$str} ";
         }
 
@@ -335,24 +372,24 @@ class SqlSrv extends DbBuilder
         }
 
         if(!empty($param['GROUPBY'])){
-            $str = preg_replace('/[^A-Za-z0-9_,\. `]/', '', $param['GROUPBY']);
+            $str = preg_replace('/[^A-Za-z0-9_,\. "`]/', '', $param['GROUPBY']);
             $sql .= " GROUP BY " .$str;
         }
         if(!empty($param['ORDER'])){
-            $str = preg_replace('/[^A-Za-z0-9_,\. `]/', '', $param['ORDER']);
+            $str = preg_replace('/[^A-Za-z0-9_,\. "`]/', '', $param['ORDER']);
             $sql .= " ORDER BY " .$str;
         }
         if(!empty($param['LIMIT'])){
             if(is_array($param['LIMIT'])){
-                $sql .= " OFFSET ".intval($param['LIMIT'][0]).' ROWS FETCH NEXT '.intval($param['LIMIT'][1]).' ROWS ONLY';
+                $sql .= " LIMIT ".intval($param['LIMIT'][1]).' OFFSET '.intval($param['LIMIT'][0]);
             }else{
-                //$sql .= " OFFSET 0 ROWS FETCH NEXT ".intval($param['LIMIT']).' ROWS ONLY';
+                $sql .= " LIMIT ".intval($param['LIMIT']);
             }
         }
         if($this->options['fetchSql']){ return $sql; }
 
-        $res = $this->_query($sql);
-        return SqlSrvResult::instance([
+        $res = $this->_query($sql) ;
+        return PgSqlResult::instance([
             'result'        => $res,
             'sql'           => $this->sql,
             'errorCode'     => $this->errorCode,
@@ -360,8 +397,10 @@ class SqlSrv extends DbBuilder
         ]);
     }
 
-    /*
+
+    /**
      * 查询一条数据
+     * @return array|false|string|null
      */
     public function selectOne()
     {
@@ -374,19 +413,19 @@ class SqlSrv extends DbBuilder
         $param = $this->options['param'];
         $alias = $this->options['alias'];
 
-        $table = str_replace('.', '].[', $table);
+        $table = $this->tableNameAssociation($table);
         $this->sql = '';
         if(empty($fields)){
-            $sql = "SELECT TOP 1 ".(empty($alias) ? '' : "{$alias}.")."* FROM [{$table}] ";
+            $sql = "SELECT ".(empty($alias) ? '' : "{$alias}.")."* FROM \"{$table}\" ";
         }else{
             $ct = gettype($fields);
             if($ct == 'string'){
-                $fields = preg_replace('/[^A-Za-z0-9_,\-\. `()\*\[\]]/', '', $fields);
-                $sql = "SELECT TOP 1  {$fields} FROM [{$table}] ";
+                $fields = preg_replace('/[^A-Za-z0-9_,\-\. "`()\*]/', '', $fields);
+                $sql = "SELECT {$fields} FROM \"{$table}\" ";
             }elseif($ct == 'array'){
-                $sql = "SELECT TOP 1 ". implode(',', $fields) ." FROM [{$table}] ";
+                $sql = "SELECT ". implode(',', $fields) ." FROM \"{$table}\" ";
             }else{
-                $sql = "SELECT TOP 1 Fields FROM [{$table}] ";
+                $sql = "SELECT Fields FROM \"{$table}\" ";
             }
         }
 
@@ -395,7 +434,7 @@ class SqlSrv extends DbBuilder
         }
 
         if(!empty($param['JOIN'])){
-            $str = preg_replace('/[^A-Za-z0-9_,\. `=\[\]]/', '', $param['JOIN']);
+            $str = preg_replace('/[^A-Za-z0-9_,\. "`=]/', '', $param['JOIN']);
             $sql .= " {$str} ";
         }
 
@@ -414,18 +453,20 @@ class SqlSrv extends DbBuilder
         }
 
         if(!empty($param['GROUPBY'])){
-            $str = preg_replace('/[^A-Za-z0-9_,\. `]/', '', $param['GROUPBY']);
+            $str = preg_replace('/[^A-Za-z0-9_,\. "`]/', '', $param['GROUPBY']);
             $sql .= " GROUP BY " .$str;
         }
         if(!empty($param['ORDER'])){
-            $str = preg_replace('/[^A-Za-z0-9_,\. `]/', '', $param['ORDER']);
+            $str = preg_replace('/[^A-Za-z0-9_,\. "`]/', '', $param['ORDER']);
             $sql .= " ORDER BY " .$str;
         }
 
+        $sql .= " LIMIT 1";
+
         if($this->options['fetchSql']){ return $sql; }
 
-        $res = $this->_query($sql) ;
-        return $this->fetch_assoc($res);
+        $query = $this->_query($sql);
+        return pg_fetch_assoc($query);
     }
 
     public function getOne()
@@ -444,21 +485,21 @@ class SqlSrv extends DbBuilder
         $param = $this->options['param'];
         $alias = $this->options['alias'];
 
-        $table = str_replace('.', '].[', $table);
+        $table = $this->tableNameAssociation($table);
         $this->sql = '';
         $ct = gettype($fields);
         if(empty($fields) || $ct != 'string'){
             return false;
         }
-        $fields = preg_replace('/[^A-Za-z0-9_,\-\. `()\*\[\]]/', '', $fields);
-        $sql = "SELECT TOP 1 {$fields} FROM [{$table}] ";
+        $fields = preg_replace('/[^A-Za-z0-9_,\-\. "`()\*]/', '', $fields);
+        $sql = "SELECT {$fields} FROM \"{$table}\" ";
 
         if(!empty($alias)){
             $sql .= "AS {$alias} ";
         }
 
         if(!empty($param['JOIN'])){
-            $str = preg_replace('/[^A-Za-z0-9_,\. `=\[\]]/', '', $param['JOIN']);
+            $str = preg_replace('/[^A-Za-z0-9_,\. "`=]/', '', $param['JOIN']);
             $sql .= " {$str} ";
         }
 
@@ -477,18 +518,21 @@ class SqlSrv extends DbBuilder
         }
 
         if(!empty($param['GROUPBY'])){
-            $str = preg_replace('/[^A-Za-z0-9_,\. `]/', '', $param['GROUPBY']);
+            $str = preg_replace('/[^A-Za-z0-9_,\. "`]/', '', $param['GROUPBY']);
             $sql .= " GROUP BY " .$str;
         }
         if(!empty($param['ORDER'])){
-            $str = preg_replace('/[^A-Za-z0-9_,\. `]/', '', $param['ORDER']);
+            $str = preg_replace('/[^A-Za-z0-9_,\. "`]/', '', $param['ORDER']);
             $sql .= " ORDER BY " .$str;
         }
 
+        $sql .= " LIMIT 1";
+
+        $this->sql = $sql;
         if($this->options['fetchSql']){ return $sql; }
 
-        $res = $this->_query($sql);
-        $r = $this->fetch_row($res);
+        $query = $this->_query($sql);
+        $r = pg_fetch_row($query);
         return $r ? $r[0] : null;
     }
 
@@ -502,15 +546,15 @@ class SqlSrv extends DbBuilder
         $param = $this->options['param'];
         $alias = $this->options['alias'];
 
-        $table = str_replace('.', '].[', $table);
+        $table = $this->tableNameAssociation($table);
         $this->sql = '';
-        $sql = "SELECT COUNT(*) AS amount FROM [{$table}] ";
+        $sql = "SELECT COUNT(*) AS amount FROM \"{$table}\" ";
         if(!empty($alias)){
             $sql .= "AS {$alias} ";
         }
 
         if(!empty($param['JOIN'])){
-            $str = preg_replace('/[^A-Za-z0-9_,\. `=\[\]]/', '', $param['JOIN']);
+            $str = preg_replace('/[^A-Za-z0-9_,\. "`=]/', '', $param['JOIN']);
             $sql .= " {$str} ";
         }
         if(!empty($condition)){
@@ -528,64 +572,43 @@ class SqlSrv extends DbBuilder
 
         }
         $res = $this->_query($sql);
-        $r = $this->fetch_assoc($res);
+        $r = pg_fetch_assoc($res);
         return $r ? (int)$r['amount'] : 0;
-    }
-
-    protected function fetch_assoc($res)
-    {
-        return sqlsrv_fetch_array( $res, SQLSRV_FETCH_ASSOC );
-    }
-
-    protected function fetch_row($res)
-    {
-        return sqlsrv_fetch_array( $res, SQLSRV_FETCH_NUMERIC );
-    }
-
-    public function close()
-    {
-        return sqlsrv_close( $this->connid );
-    }
-
-    public function insert_id()
-    {
-        return $this->insertid;
     }
 
     public function affected_rows()
     {
         return $this->affected_rows;
     }
-
-    public function server_info()
+    public function insert_id()
     {
-        return sqlsrv_server_info( $this->connid );
+        return $this->insertid;
     }
 
-    public function client_info()
+    public function version(): string
     {
-        return sqlsrv_client_info( $this->connid );
+        return pg_version($this->connid)['server'];
     }
 
-    public function error(): bool|string
+    public function close(): bool
     {
-        return json_encode($this->errors(), JSON_UNESCAPED_UNICODE);
+        return pg_close($this->connid);
     }
 
-    public function errors()
+    public function error(): string
     {
-        return sqlsrv_errors();
+        return @pg_last_error($this->connid);
     }
 
-    public function errno()
+    public function errno(): int
     {
-        $e = $this->errors();
-        return $e[0][1] ?? 0;
+        return $this->errorCode;
     }
 
-    protected function halt( $message = '', $sql = '' ) {
+    protected function halt($message = '', $sql = '')
+    {
         if(defined('DT_DEBUG') && DT_DEBUG){
-            echo "<div>".$sql."</div><div>".LiComm::dv($this->errors(), false)."</div><div>".$message."</div>\n";
+            echo "\t\t<query>".$sql."</query>\n\t\t<errno>".$this->errno()."</errno>\n\t\t<errmsg>".$message."</errmsg>\n";
         }else{
             echo $message;
         }
@@ -609,6 +632,38 @@ class SqlSrv extends DbBuilder
         exit(0);
     }
 
+    /*
+     * 检查是否为注入
+     * 未完工 2022-10-20
+     */
+    public function IsInjection($str)
+    {
+        $isInj = false;
+        // /((\%3D)|(=))[^\n]*((\%27)|(\’)|(\-\-)|(\%3B)|(:))/i
+        $Exec_Commond = "/(\s|\S)*(exec(\s|\+)+(s|x)p\w+)(\s|\S)*/";
+        $Simple_XSS = "/(\s|\S)*((%3C)|)(\s|\S)*/";
+        $Eval_XSS = "/(\s|\S)*((%65)|e)(\s)*((%76)|v)(\s)*((%61)|a)(\s)*((%6C)|l)(\s|\S)*/";
+        $Image_XSS = "/(\s|\S)*((%3C)|)(\s|\S)*/" ;
+        $Script_XSS = "/(\s|\S)*((%73)|s)(\s)*((%63)|c)(\s)*((%72)|r)(\s)*((%69)|i)(\s)*((%70)|p)(\s)*((%74)|t)(\s|\S)*/";
+        $SQL_Injection = "/(\s|\S)*((%27)|(')|(%3D)|(=)|(/)|(%2F)|(\")|((%22)|(-|%2D){2})|(%23)|(%3B)|(;))+(\s|\S)*/";
+        if(preg_match($Exec_Commond, $str)){
+            $isInj = true;
+        }
+        if(preg_match($Simple_XSS, $str)){
+            $isInj = true;
+        }
+        if(preg_match($Eval_XSS, $str)){
+            $isInj = true;
+        }
+        if(preg_match($Image_XSS, $str)){
+            $isInj = true;
+        }
+        if(preg_match($Script_XSS, $str)){
+            $isInj = true;
+        }
+        return $isInj;
+    }
+
     public function removeEscape($str)
     {
         $str = str_replace(array('\'','"','\\'),"",$str);
@@ -617,7 +672,7 @@ class SqlSrv extends DbBuilder
 
     public function escape_string($str)
     {
-        return $str;
+        return pg_escape_string($this->connid, $str);
     }
 
     protected function _fields_strip($fields)
@@ -670,28 +725,28 @@ class SqlSrv extends DbBuilder
         foreach($fields as $k=>$v){
             switch(gettype($v)){
                 case 'string':
-                    $fk[] = "[{$k}]";
+                    $fk[] = "\"{$k}\"";
                     $fv[] = "'" .$this->escape_string($v). "'";
                     break;
                 case 'integer':
-                    $fk[] = "[{$k}]";
+                    $fk[] = "\"{$k}\"";
                     $fv[] = "'{$v}'";
                     break;
                 case 'double':
-                    $fk[] = "[{$k}]";
+                    $fk[] = "\"{$k}\"";
                     $fv[] = "'{$v}'";
                     break;
                 case 'boolean':
                     $_v = $v ? '1 ' : '0 ';
-                    $fk[] = "[{$k}]";
+                    $fk[] = "\"{$k}\"";
                     $fv[] = "'{$_v}'";
                     break;
                 case 'NULL':
-                    $fk[] = "[{$k}]";
+                    $fk[] = "\"{$k}\"";
                     $fv[] = 'NULL';
                     break;
                 default:
-                    $fk[] = "[{$k}]";
+                    $fk[] = "\"{$k}\"";
                     $fv[] = 'NULL';
                     break;
             }
@@ -699,6 +754,8 @@ class SqlSrv extends DbBuilder
 
         return [$fk, $fv];
     }
+
+
 
     protected function _condition_strip($condition)
     {
@@ -744,11 +801,7 @@ class SqlSrv extends DbBuilder
                     case 'array':
                         switch(gettype($v[1])){
                             case 'string':
-                                if($v[0] == 'CONTAINS' || $v[0] == 'contains'){
-                                    $cons[] = "CONTAINS({$k}, '".$this->escape_string($v[1])."')";
-                                }else{
-                                    $cons[] = $k . " {$v[0]} '" .$this->escape_string($v[1]). "'";
-                                }
+                                $cons[] = $k . " {$v[0]} '" .$this->escape_string($v[1]). "'";
                                 break;
                             case 'integer':
                                 $cons[] = "{$k} {$v[0]} {$v[1]}";
@@ -799,5 +852,13 @@ class SqlSrv extends DbBuilder
 
 
         return $cons;
+    }
+
+    protected function tableNameAssociation(string $table): string
+    {
+        if(!str_contains($table, '.')){
+            $table = $this->schema . '.' . $table;
+        }
+        return (string)str_replace('.', '"."', $table);
     }
 }

@@ -80,7 +80,6 @@ class MongoDB extends DbBuilder
      * $filter = ['a'=>['$lt'=>9]];
      * $options = ['projection' => ['_id' => 0],'sort'=>['a'=> -1], 'limit'=>5, 'skip'=>0];
      * @return MongoDBResult
-     * @throws \MongoDB\Driver\Exception\Exception
      */
 	public function select()
     {

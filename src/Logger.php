@@ -57,7 +57,7 @@ class Logger
      */
     public function addOutputTarget(callable $target, array $param = []): void
     {
-        $param['target'] = $param['target'] ? strtolower($param['target']) : 'string';
+        $param['target'] = isset($param['target']) ? strtolower($param['target']) : 'string';
         $this->outputTargets[] = ['callable'=>$target, 'param'=>$param];
     }
 
