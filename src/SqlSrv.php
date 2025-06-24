@@ -23,19 +23,19 @@ class SqlSrv extends DbBuilder
         return $this->connect($cfg['hostname'], $cfg['username'], $cfg['password'], $cfg['dbname'], $cfg['charset'], $TrustServerCertificate);
     }
 
-    function connect( $dbhost, $dbuser, $dbpw, $dbname, $dbcharset, $TrustServerCertificate = false ) {
-        if(empty($dbcharset)){
-            $dbcharset = 'UTF-8';
+    function connect($host, $username, $password, $dbname, $charset, $TrustServerCertificate = false ) {
+        if(empty($charset)){
+            $charset = 'UTF-8';
         }
         $connectionOptions = array(
-            'CharacterSet' => $dbcharset,
+            'CharacterSet' => $charset,
             "Database" => $dbname,
-            "Uid" => $dbuser,
-            "PWD" => $dbpw,
+            "Uid" => $username,
+            "PWD" => $password,
             'TrustServerCertificate' => $TrustServerCertificate
         );
         //Establishes the connection
-        if ( !$this->connid = sqlsrv_connect( $dbhost, $connectionOptions ) ) {
+        if ( !$this->connid = sqlsrv_connect( $host, $connectionOptions ) ) {
             print_r($this->errors());
             $this->halt( 'Can not connect to MsSQL server' );
         }
@@ -742,49 +742,60 @@ class SqlSrv extends DbBuilder
                         $cons[] = "{$k} = NULL ";
                         break;
                     case 'array':
-                        switch(gettype($v[1])){
-                            case 'string':
-                                if($v[0] == 'CONTAINS' || $v[0] == 'contains'){
-                                    $cons[] = "CONTAINS({$k}, '".$this->escape_string($v[1])."')";
-                                }else{
-                                    $cons[] = $k . " {$v[0]} '" .$this->escape_string($v[1]). "'";
+                        $_w = strtoupper($v[0]);
+                        switch ($_w) {
+                            case 'CONTAINS':
+                                $cons[] = "CONTAINS ({$k}, '" . $this->escape_string($v[1]) . "')";
+                                break;
+                            case 'NOT BETWEEN':
+                            case 'BETWEEN':
+                                if (is_string($v[1])) {
+                                    $cons[] = $k . " {$v[0]} " . $this->escape_string($v[1]);
+                                } else {
+                                    $cons[] = $k . " {$v[0]} {$v[1]} AND {$v[2]}";
                                 }
-                                break;
-                            case 'integer':
-                                $cons[] = "{$k} {$v[0]} {$v[1]}";
-                                break;
-                            case 'double':
-                                $cons[] = "{$k} {$v[0]} {$v[1]}";
-                                break;
-                            case 'boolean':
-                                $_v = $v[1] ? '1' : '0';
-                                $cons[] = "{$k} {$v[0]} ". $_v ;
-                                break;
-                            case 'array':
-                                $_v1 = [];
-                                foreach($v[1] as $ik=>$iv){
-                                    $ivtype = gettype($iv);
-                                    if($ivtype == 'string'){
-                                        $_v1[] = "'" . $this->escape_string($iv) . "'";
-                                    }elseif($ivtype == 'integer' || $ivtype == 'double'){
-                                        $_v1[] = $iv;
-                                    }
-                                }
-                                if(!empty($_v1)){
-                                    if($v[0] == 'IN' || $v[0] == 'in'|| $v[0] == 'not in'|| $v[0] == 'NOT IN'){
-                                        $cons[] = "{$k} {$v[0]} (". implode(',', $_v1) . ')';
-                                    }else{
-                                        $cons[] = "{$k} {$v[0]} ". implode(' AND ', $_v1) . '';
-                                    }
-                                }
-                                break;
-                            case 'NULL':
-                                $cons[] = "{$k} {$v[0]} NULL";
                                 break;
                             default:
-                                //errtype
-                                $cons[] = "{$k} = 'IMPORTANT ERROR TYPE'";
-                                break;
+                                switch (gettype($v[1])) {
+                                    case 'string':
+                                        $cons[] = $k . " {$v[0]} '" . $this->escape_string($v[1]) . "'";
+                                        break;
+                                    case 'integer':
+                                        $cons[] = "{$k} {$v[0]} {$v[1]}";
+                                        break;
+                                    case 'double':
+                                        $cons[] = "{$k} {$v[0]} {$v[1]}";
+                                        break;
+                                    case 'boolean':
+                                        $_v = $v[1] ? '1' : '0';
+                                        $cons[] = "{$k} {$v[0]} " . $_v;
+                                        break;
+                                    case 'array':
+                                        $_v1 = [];
+                                        foreach ($v[1] as $ik => $iv) {
+                                            $ivtype = gettype($iv);
+                                            if ($ivtype == 'string') {
+                                                $_v1[] = "'" . $this->escape_string($iv) . "'";
+                                            } elseif ($ivtype == 'integer' || $ivtype == 'double') {
+                                                $_v1[] = $iv;
+                                            }
+                                        }
+                                        if (!empty($_v1)) {
+                                            if ($v[0] == 'IN' || $v[0] == 'in' || $v[0] == 'not in' || $v[0] == 'NOT IN') {
+                                                $cons[] = "{$k} {$v[0]} (" . implode(',', $_v1) . ')';
+                                            } else {
+                                                $cons[] = "{$k} {$v[0]} " . implode(' AND ', $_v1) . '';
+                                            }
+                                        }
+                                        break;
+                                    case 'NULL':
+                                        $cons[] = "{$k} {$v[0]} NULL";
+                                        break;
+                                    default:
+                                        //errtype
+                                        $cons[] = "{$k} = 'IMPORTANT ERROR TYPE'";
+                                        break;
+                                }
                         }
                         break;
                     default:

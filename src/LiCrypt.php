@@ -9,16 +9,39 @@ class LiCrypt
     public int $err;
     protected string $cipher;
     protected string $ckey;
-    protected string $iv;
+    protected ?string $iv;
     protected string $salt;
+    protected static $instance;
 
-    public function __construct(string $key = '', string $iv = '', string $cipher = 'aes-128-cfb')
+    public function __construct(string $key = '', string $cipher = 'aes-256-cfb', ?string $iv = '')
     {
         $this->cipher = $cipher;
         $this->ckey = $key;
-        $this->iv = empty($iv) ? $this->ivstr($key) : $iv;
-        $this->salt = substr(md5('UNN.TECH' . $key) . $this->iv, 3, 16);
+        $this->iv = $iv;
+        $this->salt = $key;
         $this->err = 0;
+    }
+
+    public static function instance(?string $key = null, ?string $cipher = null, ?string $iv = null): static
+    {
+        if (static::$instance === null) {
+            if (is_null($key)) $key = '';
+            if (is_null($iv)) $iv = '';
+            if (is_null($cipher)) $cipher = 'AES-256-CFB';
+            static::$instance = new static($key, $cipher, $iv);
+        }else{
+            if (!is_null($key)) {
+                static::$instance->key = $key;
+                static::$instance->salt = $key;
+            }
+            if (!is_null($iv)) {
+                static::$instance->iv = $iv;
+            }
+            if (!is_null($cipher)) {
+                static::$instance->cipher = $cipher;
+            }
+        }
+        return static::$instance;
     }
 
     /**
@@ -35,7 +58,7 @@ class LiCrypt
      * @param string $cipher
      * @return void
      */
-    public function setCipher(string $cipher = 'aes-256-cfb'): void
+    public function setCipher(string $cipher = 'aes-256-cbc'): void
     {
         $this->cipher = $cipher;
     }
@@ -43,13 +66,13 @@ class LiCrypt
     /**
      * 重新设置加密密钥
      * @param string $key
-     * @param string $iv
+     * @param string|null $iv
      * @return void
      */
-    public function setKey(string $key = '', string $iv = ''): void
+    public function setKey(string $key = '', ?string $iv = ''): void
     {
         $this->ckey = $key;
-        $this->iv = empty($iv) ? $this->ivstr($key) : $iv;
+        $this->iv = $iv;
     }
 
     /**
@@ -60,14 +83,6 @@ class LiCrypt
     public function setSalt(string $salt = ''): void
     {
         $this->salt = $salt;
-    }
-
-    private function ivstr($key): string
-    {
-        $str = md5($key);
-        $ivlen = openssl_cipher_iv_length($this->cipher);
-        $str = str_pad($str, $ivlen, '=');
-        return substr($str, 0, $ivlen);
     }
 
     /**
@@ -82,10 +97,19 @@ class LiCrypt
         $key = $key == '' ? $this->ckey : $key;
         $iv = $iv == '' ? $this->iv : $iv;
 
-        $ciphertext = openssl_encrypt($plaintext, $this->cipher, $key, 1, $iv);
+        $ivLen = openssl_cipher_iv_length($this->cipher);
+        if (empty($iv)) {
+            $_iv = $ivLen > 0 ? openssl_random_pseudo_bytes($ivLen) : '';
+        }else{
+            $_iv = $iv;
+        }
+
+        $ciphertext = openssl_encrypt($plaintext, $this->cipher, $key, 1, $_iv);
         if($ciphertext === false) return false;
-        $ciphertext = $this->base64UrlEncode($ciphertext);
-        return $ciphertext;
+        if ($ivLen > 0 && empty($iv)) {
+            $ciphertext = $_iv . $ciphertext;
+        }
+        return $this->base64UrlEncode($ciphertext);
     }
 
     /**
@@ -101,8 +125,19 @@ class LiCrypt
         $iv = $iv == '' ? $this->iv : $iv;
 
         $ciphertext = $this->base64UrlDecode($ciphertext);
-        $original_plaintext = openssl_decrypt($ciphertext, $this->cipher, $key, 1, $iv);
-        return $original_plaintext;
+        if (empty($iv)) {
+            $ivLen = openssl_cipher_iv_length($this->cipher);
+            if ($ivLen > 0) {
+                $_iv = substr($ciphertext, 0, $ivLen);
+                $ciphertext = substr($ciphertext, $ivLen);
+            }else{
+                $_iv = '';
+            }
+        } else {
+            $_iv = $iv;
+        }
+
+        return openssl_decrypt($ciphertext, $this->cipher, $key, 1, $_iv);
     }
 
     /**
@@ -166,7 +201,7 @@ class LiCrypt
             $sign = $this->signature($jwt, $_salt);
             $jwt['sign'] = $sign;
         }
-        $rt = $this->encrypt(json_encode($jwt));
+        $rt = $this->encrypt(json_encode($jwt, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
         $this->err = 0;
         return $rt;
 
@@ -187,8 +222,8 @@ class LiCrypt
         } else {
             $arr = json_decode($re, true);
             if (is_array($arr)) {
-                if($salt !== false && !is_null($salt)){
-                    if(!isset($arr['sign'])){
+                if ($salt !== false && !is_null($salt)) {
+                    if (!isset($arr['sign'])) {
                         $this->err = 2; //签名错
                         return false;
                     }
@@ -227,7 +262,7 @@ class LiCrypt
                 $this->err = 0;
                 return $arr;
             } else {
-                $this->err = 2;  //非数组
+                $this->err = -1;  //非数组
                 return false;
             }
         }
