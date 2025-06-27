@@ -14,6 +14,22 @@ class LiHttp {
 
     public function __construct(array $options = [])
     {
+        $this->setOptions($options);
+    }
+
+    public static function instance($options = []): static
+    {
+        if (is_null(self::$instance)) {
+            static::$instance = new static($options);
+        }else{
+            static::$instance->setOptions($options);
+        }
+
+        return self::$instance;
+    }
+
+    public function setOptions(array $options = []): void
+    {
         if(isset($options['base_uri'])){
             $this->base_uri = $options['base_uri'];
         }
@@ -23,16 +39,6 @@ class LiHttp {
         if(isset($options['headers'])){
             $this->headers = $options['headers'];
         }
-        self::$instance = $this;
-    }
-
-    public static function instance($options = [])
-    {
-        if (is_null(self::$instance)) {
-            static::$instance = new static($options);
-        }
-
-        return self::$instance;
     }
 
     public function _get(string $uri = '', ?array $aHeader = null): LiHttpResponse
