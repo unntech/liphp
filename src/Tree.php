@@ -13,20 +13,15 @@ class Tree
      * 生成树型结构所需要的2维数组
      * @var array
      */
-    public $arr = [];
+    public array $arr = [];
 
     /**
      * 生成树型结构所需修饰符号，可以换成图片
      * @var array
      */
-    public $icon = array('│', '├', '└');
-    public $nbsp = "&nbsp;";
-    public $pidname = 'pid';
-
-    public function __construct()
-    {
-
-    }
+    public array $icon = ['│', '├', '└'];
+    public string $nbsp = "&nbsp;";
+    public string $pidname = 'pid';
 
     /**
      * 初始化
@@ -34,7 +29,7 @@ class Tree
      * @param array $options 参数
      * @return Tree
      */
-    public static function instance($options = [])
+    public static function instance(array $options = [])
     {
         if (is_null(self::$instance)) {
             self::$instance = new static($options);
@@ -45,7 +40,7 @@ class Tree
 
     /**
      * 初始化方法
-     * @param array  $arr     2维数组，例如：
+     * @param array $arr     2维数组，例如：
      *      array(
      *      1 => array('id'=>'1','pid'=>0,'name'=>'一级栏目一'),
      *      2 => array('id'=>'2','pid'=>0,'name'=>'一级栏目二'),
@@ -55,11 +50,11 @@ class Tree
      *      6 => array('id'=>'6','pid'=>3,'name'=>'三级栏目一'),
      *      7 => array('id'=>'7','pid'=>3,'name'=>'三级栏目二')
      *      )
-     * @param string $pidname 父字段名称
-     * @param string $nbsp    空格占位符
+     * @param string|null $pidname 父字段名称
+     * @param string|null $nbsp    空格占位符
      * @return Tree
      */
-    public function init($arr = [], $pidname = null, $nbsp = null)
+    public function init(array $arr = [], ?string $pidname = null, ?string $nbsp = null): static
     {
         $this->arr = $arr;
         if (!is_null($pidname)) {

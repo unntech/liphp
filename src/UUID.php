@@ -3,7 +3,7 @@
 namespace LiPhp;
 
 class UUID {
-    public static function v3(string $namespace, string $name): string
+    public static function v3(string $namespace, string $name): string|bool
     {
         if(!self::is_valid($namespace)) return false;
 
@@ -67,7 +67,7 @@ class UUID {
         );
     }
 
-    public static function v5(string $namespace, string $name): bool
+    public static function v5(string $namespace, string $name): string|bool
     {
         if(!self::is_valid($namespace)) return false;
 
@@ -105,6 +105,38 @@ class UUID {
             // 48 bits for "node"
             substr($hash, 20, 12)
         );
+    }
+
+    public static function v6(): string
+    {
+        // 获取当前时间戳（100纳秒精度，从1582-10-15开始）
+        $time = microtime(true);
+        $timeUnits = (int)($time * 10000000); // 转换为100纳秒单位
+
+        // 将时间戳分解为60位（UUIDv6使用48位时间戳+12位序列号）
+        $timeHi = ($timeUnits & 0xFFFF00000000) >> 32;
+        $timeMid = ($timeUnits & 0x0000FFFF0000) >> 16;
+        $timeLow = $timeUnits & 0x00000000FFFF;
+
+        // 生成16字节的随机数据（替换MAC地址部分）
+        $randomBytes = random_bytes(8);
+        $randomParts = unpack('n*', $randomBytes);
+
+        // 构建UUID字节
+        $uuid = pack(
+            'n2CN2C*',
+            $timeLow,          // 时间低32位
+            $timeMid,          // 时间中16位
+            ($timeHi & 0x0FFF) | 0x6000, // 时间高12位 + 版本6
+            ($randomParts[1] & 0x3FFF) | 0x8000, // 时钟序列高14位 + 变体RFC4122
+            $randomParts[2],   // 时钟序列低16位
+            $randomParts[3],   // 节点前16位
+            $randomParts[4]    // 节点后32位
+        );
+
+        // 转换为标准UUID格式
+        $hex = bin2hex($uuid);
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split($hex, 4));
     }
 
     public static function is_valid(string $uuid)

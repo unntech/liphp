@@ -31,7 +31,7 @@ class Session
         }
         switch (self::$save){
             case 'redis':
-                self::$redisHandle = $option['handle'];
+                self::$redisHandle = empty($option['handle']) ? Redis::$redis : $option['handle'];
                 if(self::$redisHandle->exists('SESSID:'.self::$session_id)){
                     $var = self::$redisHandle->get('SESSID:'.self::$session_id);
                     self::$session = unserialize($var);

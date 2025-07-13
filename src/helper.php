@@ -84,7 +84,9 @@ if (!function_exists('session')) {
                 if(empty(LiApp::$redis)){
                     LiApp::set_redis();
                 }
-                $opt['handle'] = LiApp::$redis;
+                if (is_null($opt['handle'])) {
+                    $opt['handle'] = LiApp::$redis;
+                }
             }
             Session::start($opt);
         }
