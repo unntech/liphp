@@ -19,7 +19,7 @@ class SnowFlake
      * @param int $mId
      * @return void
      */
-    public static function machineId(int $mId = 0): void
+    public static function machineId(int $mId = 1): void
     {
         self::$machineId = $mId;
     }
@@ -29,7 +29,7 @@ class SnowFlake
      * @param int $mId 机器号，0为自动，不大于1024
      * @return int
      */
-    public static function generateParticle(int $mId = 0): int
+    public static function generateParticle(int $mId = 1): int
     {
         //mId = 0 自动生成机器号
         if($mId == 0 && empty(self::$machineId)) {
