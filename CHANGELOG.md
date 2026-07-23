@@ -3,6 +3,7 @@ CHANGELOG
 
 ## v2.0.6 `2026-04-17`
 * SnowFlake generateParticle 方法 默认 $mId 改为 1
+* 修复LiHttp headers 参数BUG
 
 ### v2.0.5 `2025-07-06`
 * fix bugs

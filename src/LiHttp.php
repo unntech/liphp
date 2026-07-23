@@ -63,7 +63,7 @@ class LiHttp {
         curl_setopt( $ch, CURLOPT_HEADER, true );
         $pHeader = [];
         if(!empty($this->headers)){
-            foreach($aHeader as $k=>$v){
+            foreach($this->headers as $k=>$v){
                 $pHeader[] = "{$k}: {$v}";
             }
         }
