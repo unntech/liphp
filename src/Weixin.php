@@ -254,6 +254,12 @@ class Weixin
         }
     }
 
+    public function decryptTkt(?int $timestamp, string $postData, string &$msg)
+    {
+        if (empty($postData)) return -1;
+        return $this->wxMsgCrypt->decryptTkt($timestamp, $postData, $msg);
+    }
+
     /**
      * 验证数据签名
      * @return bool

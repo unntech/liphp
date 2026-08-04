@@ -320,7 +320,7 @@ class Mysqli extends DbBuilder
             $sql .= " GROUP BY " .$str;
         }
         if(!empty($param['ORDER'])){
-            $str = preg_replace('/[^A-Za-z0-9_,\. `]/', '', $param['ORDER']);
+            $str = preg_replace('/[^A-Za-z0-9_,\. `()]/', '', $param['ORDER']);
             $sql .= " ORDER BY " .$str;
         }
         if(!empty($param['LIMIT'])){
@@ -401,7 +401,7 @@ class Mysqli extends DbBuilder
             $sql .= " GROUP BY " .$str;
         }
         if(!empty($param['ORDER'])){
-            $str = preg_replace('/[^A-Za-z0-9_,\. `]/', '', $param['ORDER']);
+            $str = preg_replace('/[^A-Za-z0-9_,\. `()]/', '', $param['ORDER']);
             $sql .= " ORDER BY " .$str;
         }
 
@@ -466,7 +466,7 @@ class Mysqli extends DbBuilder
             $sql .= " GROUP BY " .$str;
         }
         if(!empty($param['ORDER'])){
-            $str = preg_replace('/[^A-Za-z0-9_,\. `]/', '', $param['ORDER']);
+            $str = preg_replace('/[^A-Za-z0-9_,\. `()]/', '', $param['ORDER']);
             $sql .= " ORDER BY " .$str;
         }
 

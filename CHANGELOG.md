@@ -1,5 +1,8 @@
 CHANGELOG
 =========
+## v2.0.7 `2026-08-04`
+* Mysqli 参数ORDER修正()过虑，支持如rand()函数排序
+* Weixin类增加decryptTkt函数，解析推送加密的Ticket
 
 ## v2.0.6 `2026-04-17`
 * SnowFlake generateParticle 方法 默认 $mId 改为 1
